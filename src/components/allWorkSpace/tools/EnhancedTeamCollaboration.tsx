@@ -136,31 +136,36 @@ const EnhancedTeamCollaboration: React.FC = () => {
 
       // Create invitation using database context
       console.log('Creating invitation...');
-      const joinCode = await inviteToWorkspace({
-        inviterUsername: 'current_user', // In real app, get from auth context
-        inviteeUsername: inviteUsername,
-        role: inviteRole
-      });
+      try {
+        const joinCode = await inviteToWorkspace({
+          inviterUsername: 'current_user', // In real app, get from auth context
+          inviteeUsername: inviteUsername,
+          role: inviteRole
+        });
 
-      console.log('Generated join code:', joinCode);
+        console.log('Generated join code:', joinCode);
 
-      // Set success state with generated code
-      setGeneratedCode(joinCode);
-      setInviteSuccess(`Invitation sent successfully! Share this join code with ${inviteUsername}:`);
+        // Set success state with generated code
+        setGeneratedCode(joinCode);
+        setInviteSuccess(`Invitation sent successfully! Share this join code with ${inviteUsername}:`);
       
-      // Reset form
-      setInviteUsername('');
-      setInviteRole('editor');
+        // Reset form
+        setInviteUsername('');
+        setInviteRole('editor');
       
-      // Update collaboration status
-      setCollaborationStatus(prev => ({
-        ...prev,
-        activeUsers: prev.activeUsers + 1,
-        lastSync: new Date()
-      }));
+        // Update collaboration status
+        setCollaborationStatus(prev => ({
+          ...prev,
+          activeUsers: prev.activeUsers + 1,
+          lastSync: new Date()
+        }));
+      } catch (inviteError) {
+        console.error('Failed to create invitation:', inviteError);
+        setInviteError('Failed to create invitation. Please try again.');
+        return;
+      }
       
-    } catch (e) {
-      const error = e as Error
+    } catch (error) {
       console.error('Invitation error:', error);
       if (error.message?.includes('401')) {
         setInviteError('Authentication failed. Please log in again.');
@@ -385,6 +390,14 @@ const EnhancedTeamCollaboration: React.FC = () => {
               <span className="text-gray-300 dark:text-gray-600">•</span>
               <span className="text-gray-600 dark:text-gray-400">
                 Last sync: {collaborationStatus.lastSync.toLocaleTimeString()}
+              </span>
+            </>
+          )}
+          {isRealTimeEnabled && (
+            <>
+              <span className="text-gray-300 dark:text-gray-600">•</span>
+              <span className="text-green-600 dark:text-green-400 text-xs">
+                🔄 Auto-sync enabled
               </span>
             </>
           )}

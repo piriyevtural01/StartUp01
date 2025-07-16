@@ -194,6 +194,16 @@ interface DatabaseProviderProps {
 }
 
 export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) => {
+  // Get current user from localStorage - moved to top
+  const getCurrentUser = useCallback(() => {
+    try {
+      const user = localStorage.getItem('user');
+      return user ? JSON.parse(user) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const [sqlEngine, setSqlEngine] = useState<any>(null);
   const [currentSchema, setCurrentSchema] = useState<Schema>({
     id: uuidv4(),
@@ -209,18 +219,81 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     members: [
       {
         id: uuidv4(),
-        username: 'current_user', // In real app, get from auth context
+        username: getCurrentUser()?.username || 'current_user',
         role: 'owner',
         joinedAt: new Date()
       }
     ],
     invitations: [],
     isShared: false,
-    ownerId: 'current_user', // In real app, get from auth context
+    ownerId: getCurrentUser()?.id || 'current_user',
     createdAt: new Date(),
     updatedAt: new Date(),
   });
   const [schemas, setSchemas] = useState<Schema[]>([]);
+  
+  // Real-time collaboration state
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+
+
+  // Load workspace from localStorage on mount
+  useEffect(() => {
+    const savedWorkspace = localStorage.getItem('currentWorkspace');
+    if (savedWorkspace) {
+      try {
+        const workspace = JSON.parse(savedWorkspace);
+        setCurrentSchema(workspace);
+        setIsRealTimeEnabled(workspace.isShared);
+        console.log('Loaded workspace from localStorage:', workspace.name);
+      } catch (error) {
+        console.error('Failed to load workspace from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save workspace to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('currentWorkspace', JSON.stringify(currentSchema));
+    console.log('Saved workspace to localStorage:', currentSchema.name);
+  }, [currentSchema]);
+
+  // Real-time sync for shared workspaces
+  useEffect(() => {
+    if (!isRealTimeEnabled || !currentSchema.isShared) return;
+
+    const syncInterval = setInterval(async () => {
+      try {
+        // Fetch latest workspace data from MongoDB
+        const response = await fetch(`/api/workspaces/${currentSchema.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const latestWorkspace = await response.json();
+          
+          // Only update if the workspace has been modified by others
+          if (new Date(latestWorkspace.updatedAt) > new Date(currentSchema.updatedAt)) {
+            console.log('Syncing workspace changes from other users...');
+            setCurrentSchema(prev => ({
+              ...latestWorkspace,
+              // Preserve local state that shouldn't be overwritten
+              id: prev.id,
+              name: prev.name
+            }));
+            setLastSyncTime(new Date());
+          }
+        }
+      } catch (error) {
+        console.error('Real-time sync failed:', error);
+      }
+    }, 3000); // Sync every 3 seconds
+
+    return () => clearInterval(syncInterval);
+  }, [isRealTimeEnabled, currentSchema.isShared, currentSchema.id, currentSchema.updatedAt]);
  
   // Initialize SQL.js
   useEffect(() => {
@@ -276,17 +349,34 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     setCurrentSchema(prev => ({
       ...prev,
       invitations: [...prev.invitations, newInvitation],
+      isShared: true, // Mark workspace as shared
       updatedAt: new Date()
     }));
 
+    // Enable real-time sync
+    setIsRealTimeEnabled(true);
     console.log('Updated local schema with invitation');
     
-    // Save to MongoDB (optional - can be done later)
+    // Save to MongoDB - CRITICAL for join code validation
     try {
-      // await mongoService.saveInvitation(newInvitation);
-      console.log('Skipping MongoDB save for now');
+      const saved = await mongoService.saveInvitation(newInvitation);
+      if (!saved) {
+        console.error('Failed to save invitation to MongoDB');
+        // Rollback local state
+        setCurrentSchema(prev => ({
+          ...prev,
+          invitations: prev.invitations.filter(inv => inv.id !== newInvitation.id),
+          updatedAt: new Date()
+        }));
+        throw new Error('Failed to save invitation');
+      }
+      console.log('Successfully saved invitation to MongoDB');
+      
+      // Sync workspace to MongoDB
+      await syncWorkspaceWithMongoDB();
     } catch (error) {
       console.error('Failed to save invitation to MongoDB:', error);
+      throw error;
     }
     
     console.log('Returning join code:', joinCode);
@@ -298,7 +388,7 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     console.log('Attempting to accept invitation with code:', joinCode);
     
     try {
-      // First validate the join code with MongoDB
+      // Validate the join code with MongoDB
       const validation = await mongoService.validateJoinCode(joinCode);
       
       if (!validation.valid || !validation.invitation) {
@@ -308,6 +398,27 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
       
       const invitation = validation.invitation;
       console.log('Valid invitation found:', invitation);
+      
+      // Load the workspace from MongoDB
+      try {
+        const response = await fetch(`/api/workspaces/${invitation.workspaceId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const workspaceData = await response.json();
+          console.log('Loaded workspace data:', workspaceData);
+          
+          // Import the shared workspace
+          setCurrentSchema(workspaceData);
+          setIsRealTimeEnabled(true);
+        }
+      } catch (error) {
+        console.error('Failed to load workspace:', error);
+      }
       
       // Check if user is already a member
       const existingMember = currentSchema.members.find(
@@ -319,6 +430,13 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
         return false;
       }
       
+      // Update invitation status to accepted in MongoDB
+      const statusUpdated = await mongoService.updateInvitationStatus(invitation.id, 'accepted');
+      if (!statusUpdated) {
+        console.error('Failed to update invitation status in MongoDB');
+        return false;
+      }
+      
       // Update local state - mark invitation as accepted
       setCurrentSchema(prev => ({
         ...prev,
@@ -327,6 +445,7 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
             ? { ...inv, status: 'accepted' as const }
             : inv
         ),
+        isShared: true,
         updatedAt: new Date()
       }));
       
@@ -344,6 +463,18 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
         isShared: true,
         updatedAt: new Date()
       }));
+      
+      // Save new member to MongoDB
+      const memberSaved = await mongoService.saveWorkspaceMember(newMember, currentSchema.id);
+      if (!memberSaved) {
+        console.warn('Failed to save member to MongoDB, but continuing...');
+      }
+      
+      // Sync workspace to MongoDB
+      await syncWorkspaceWithMongoDB();
+      
+      // Enable real-time sync
+      setIsRealTimeEnabled(true);
       
       console.log('Local state updated successfully');
       return true;
@@ -409,9 +540,10 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
   // Enhanced workspace sync with MongoDB
   const syncWorkspaceWithMongoDB = useCallback(async () => {
     try {
+      console.log('Syncing workspace with MongoDB...');
       // Update workspace data in MongoDB
       await mongoService.updateWorkspace(currentSchema.id, {
-        schema: currentSchema,
+        ...currentSchema,
         lastSyncedAt: new Date()
       });
       
@@ -419,21 +551,14 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
         ...prev,
         lastSyncedAt: new Date()
       }));
+      
+      setLastSyncTime(new Date());
+      console.log('Workspace synced successfully');
     } catch (error) {
       console.error('Failed to sync workspace with MongoDB:', error);
     }
   }, [currentSchema]);
 
-  // Auto-sync workspace changes for shared workspaces
-  useEffect(() => {
-    if (currentSchema.isShared) {
-      const syncInterval = setInterval(() => {
-        syncWorkspaceWithMongoDB();
-      }, 30000); // Sync every 30 seconds
-
-      return () => clearInterval(syncInterval);
-    }
-  }, [currentSchema.isShared, syncWorkspaceWithMongoDB]);
 
   const addTable = useCallback((table: Omit<Table, 'id' | 'rowCount' | 'data'>) => {
     const newTable: Table = {
@@ -449,6 +574,10 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
       updatedAt: new Date(),
     }));
 
+    // Auto-sync for shared workspaces
+    if (currentSchema.isShared) {
+      setTimeout(() => syncWorkspaceWithMongoDB(), 1000);
+    }
     // Create table in SQL engine
     if (sqlEngine) {
       const columnDefs = newTable.columns.map(col => {
@@ -484,6 +613,10 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
       updatedAt: new Date(),
     }));
 
+    // Auto-sync for shared workspaces
+    if (currentSchema.isShared) {
+      setTimeout(() => syncWorkspaceWithMongoDB(), 1000);
+    }
     // Drop table in SQL engine
     if (sqlEngine) {
       try {
@@ -502,6 +635,11 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
       ),
       updatedAt: new Date(),
     }));
+    
+    // Auto-sync for shared workspaces
+    if (currentSchema.isShared) {
+      setTimeout(() => syncWorkspaceWithMongoDB(), 1000);
+    }
   }, []);
 
   const duplicateTable = useCallback((tableId: string) => {
@@ -985,6 +1123,9 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     loadSchema,
     saveSchema,
     generateSQL,
+    // Real-time collaboration state
+    isRealTimeEnabled,
+    lastSyncTime,
   };
 
   return (

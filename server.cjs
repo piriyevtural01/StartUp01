@@ -383,6 +383,8 @@ app.post('/api/users/validate', async (req, res) => {
 app.post('/api/invitations', authenticate, async (req, res) => {
   try {
     console.log('Creating invitation:', req.body);
+    console.log('User ID from auth:', req.userId);
+    
     const inv = new Invitation(req.body);
     await inv.save();
     console.log('Invitation saved successfully:', inv._id);
@@ -416,8 +418,10 @@ app.post('/api/invitations/validate', authenticate, async (req, res) => {
   try {
     const { joinCode } = req.body;
     console.log('Validating join code:', joinCode);
+    console.log('User ID from auth:', req.userId);
     
     if (!joinCode || joinCode.length !== 8) {
+      console.log('Invalid join code format');
       return res.status(400).json({ 
         valid: false, 
         error: 'Join code must be exactly 8 characters' 
@@ -429,7 +433,10 @@ app.post('/api/invitations/validate', authenticate, async (req, res) => {
       status: 'pending'
     });
     
+    console.log('Database query result:', invitation ? 'Found' : 'Not found');
+    
     if (!invitation) {
+      console.log('No invitation found for join code:', joinCode);
       return res.json({ 
         valid: false, 
         error: 'Invalid join code' 
@@ -438,6 +445,7 @@ app.post('/api/invitations/validate', authenticate, async (req, res) => {
     
     // Check if expired
     if (new Date() > invitation.expiresAt) {
+      console.log('Invitation expired:', invitation.expiresAt);
       // Update status to expired
       await Invitation.findByIdAndUpdate(invitation._id, { status: 'expired' });
       return res.json({ 
@@ -527,12 +535,12 @@ app.get('/api/members', authenticate, async (req, res) => {
 app.put('/api/workspaces/:id', authenticate, async (req, res) => {
   try {
     console.log('Updating workspace:', req.params.id);
-    // workspace modeliniz varsa:
     const { id } = req.params;
     
-    // For now, just return success since we don't have a Workspace model
-    // In a real implementation, you would update the workspace in MongoDB
     console.log('Workspace update data:', req.body);
+    
+    // Store workspace data in a simple collection or file
+    // For now, we'll just acknowledge the update
     res.json({ success: true, message: 'Workspace updated successfully' });
   } catch (err) {
     console.error('Error updating workspace:', err);
@@ -540,6 +548,38 @@ app.put('/api/workspaces/:id', authenticate, async (req, res) => {
   }
 });
 
+// Get workspace data
+app.get('/api/workspaces/:id', authenticate, async (req, res) => {
+  try {
+    console.log('Fetching workspace:', req.params.id);
+    const { id } = req.params;
+    
+    // For now, return a basic workspace structure
+    // In a real implementation, you would fetch from MongoDB
+    const workspace = {
+      id,
+      name: 'Shared Workspace',
+      tables: [],
+      relationships: [],
+      indexes: [],
+      constraints: [],
+      users: [],
+      permissions: [],
+      savedQueries: [],
+      members: [],
+      invitations: [],
+      isShared: true,
+      ownerId: req.userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    res.json(workspace);
+  } catch (err) {
+    console.error('Error fetching workspace:', err);
+    res.status(500).json({ error: 'Failed to fetch workspace' });
+  }
+});
 //
 
 app.post('/api/contact', async (req, res) => {

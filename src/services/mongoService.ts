@@ -50,6 +50,8 @@ class MongoService {
   // Enhanced invitation saving with proper validation
   async saveInvitation(invitation: WorkspaceInvitation): Promise<boolean> {
     try {
+      console.log('Saving invitation to MongoDB:', invitation);
+      
       const response = await fetch(`${this.baseUrl}/invitations`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
@@ -71,6 +73,8 @@ class MongoService {
         return false;
       }
 
+      const result = await response.json();
+      console.log('Invitation saved successfully:', result);
       return true;
     } catch (error) {
       console.error('Error saving invitation:', error);
@@ -118,6 +122,7 @@ class MongoService {
       // Convert date strings back to Date objects
       return data.map((inv: any) => ({
         ...inv,
+        id: inv._id, // Map MongoDB _id to id field
         createdAt: new Date(inv.createdAt),
         expiresAt: new Date(inv.expiresAt)
       }));
@@ -171,6 +176,7 @@ class MongoService {
       // Convert date strings back to Date objects
       return data.map((member: any) => ({
         ...member,
+        id: member._id, // Map MongoDB _id to id field
         joinedAt: new Date(member.joinedAt)
       }));
     } catch (error) {
@@ -204,6 +210,26 @@ class MongoService {
     }
   }
 
+  // Get workspace data
+  async getWorkspace(workspaceId: string): Promise<any | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/workspaces/${encodeURIComponent(workspaceId)}`, {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        console.error(`Failed to fetch workspace: ${response.status}`);
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching workspace:', error);
+      return null;
+    }
+  }
+
   // Enhanced user workspaces retrieval
   async getUserWorkspaces(username: string): Promise<any[]> {
     try {
@@ -227,6 +253,8 @@ class MongoService {
   // New method: Validate join code before acceptance
   async validateJoinCode(joinCode: string): Promise<{ valid: boolean; invitation?: WorkspaceInvitation; error?: string }> {
     try {
+      console.log('Validating join code with MongoDB:', joinCode);
+      
       const response = await fetch(`${this.baseUrl}/invitations/validate`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
@@ -235,6 +263,7 @@ class MongoService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('Join code validation failed:', response.status, errorData);
         return { 
           valid: false, 
           error: errorData.message || 'Invalid or expired join code' 
@@ -242,11 +271,13 @@ class MongoService {
       }
 
       const data = await response.json();
+      console.log('Join code validation response:', data);
       
       if (data.invitation) {
         // Convert date strings back to Date objects
         data.invitation.createdAt = new Date(data.invitation.createdAt);
         data.invitation.expiresAt = new Date(data.invitation.expiresAt);
+        data.invitation.id = data.invitation._id; // Map MongoDB _id to id field
       }
 
       return { 
@@ -263,4 +294,5 @@ class MongoService {
     }
   }
 }
+
 export const mongoService = new MongoService();

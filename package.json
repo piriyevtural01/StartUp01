@@ -38,6 +38,7 @@
     "react-router-dom": "^6.22.0",
     "react-xarrows": "^2.0.2",
     "reactflow": "^11.11.4",
+    "socket.io-client": "^4.8.1",
     "sql.js": "^1.13.0",
     "stripe": "^18.3.0",
     "tailwind": "^4.0.0",
