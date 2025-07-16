@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, User, Clock, Check, X } from 'lucide-react';
+import { AlertTriangle, User, Clock, Check } from 'lucide-react';
 
 interface ConflictData {
   id: string;

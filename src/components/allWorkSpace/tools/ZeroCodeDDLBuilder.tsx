@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Table, Columns, Settings } from 'lucide-react';
+import { Plus, Edit, Trash2, Table, Columns } from 'lucide-react';
 import { useDatabase, Column } from '../../../context/DatabaseContext';
 import { useSubscription } from '../../../context/SubscriptionContext'; // Added subscription context
-import FeatureGate from '../../subscription/FeatureGate'// Added feature gate
 import { v4 as uuidv4 } from 'uuid';
 
 const ZeroCodeDDLBuilder: React.FC = () => {

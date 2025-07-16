@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Copy, Check, Shield, Wifi, WifiOff, UserPlus, Settings, 
-  Crown, Eye, Edit, Trash2, AlertCircle, RefreshCw 
+  Users, Copy, Check, Shield, Wifi, WifiOff, UserPlus, 
+    Crown,
+  Edit,
+  Eye,
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import { websocketService, CollaborationUser } from '../../services/websocketService';
 import JoinWorkspaceDialog from './JoinWorkspaceDialog';
@@ -123,9 +127,9 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   const handleConflictResolution = (resolution: 'accept_local' | 'accept_remote' | 'merge') => {
     // Send resolution to server
     websocketService.sendEvent({
-      type: 'conflict_resolution',
+      type: 'schema_change',
       payload: {
-        conflictId: currentConflict?.id,
+        conflictId: (currentConflict as any)?.id,
         resolution
       }
     });

@@ -2,7 +2,7 @@
 import { io, Socket } from 'socket.io-client';
 
 export interface WorkspaceEvent {
-  type: 'schema_change' | 'data_change' | 'user_joined' | 'user_left' | 'permission_changed' | 'workspace_revoked';
+  type: 'schema_change' | 'data_change' | 'user_joined' | 'user_left' | 'permission_changed' | 'workspace_revoked' | 'conflict_resolution';
   payload: any;
   userId: string;
   timestamp: number;

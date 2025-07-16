@@ -122,6 +122,8 @@ export interface DatabaseContextType {
   currentSchema: Schema;
   schemas: Schema[];
   sqlEngine: any;
+  isRealTimeEnabled: boolean;
+  lastSyncTime: Date | null;
   importSchema: (schema: Schema) => void;
   // Table operations
   addTable: (table: Omit<Table, 'id' | 'rowCount' | 'data'>) => void;
@@ -175,6 +177,9 @@ export interface DatabaseContextType {
   
   // SQL preview
   generateSQL: () => string;
+  
+  // Real-time collaboration state
+  
   inviteToWorkspace: (invitation: Omit<WorkspaceInvitation, 'id'|'workspaceId'|'createdAt'|'expiresAt'|'status'|'joinCode'>) => Promise<string>;
 
 }  
@@ -205,6 +210,9 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
   }, []);
 
   const [sqlEngine, setSqlEngine] = useState<any>(null);
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  
   const [currentSchema, setCurrentSchema] = useState<Schema>({
     id: uuidv4(),
     name: 'Untitled Schema',
@@ -231,10 +239,6 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     updatedAt: new Date(),
   });
   const [schemas, setSchemas] = useState<Schema[]>([]);
-  
-  // Real-time collaboration state
-  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
 
   // Load workspace from localStorage on mount
@@ -486,48 +490,6 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
   }, [currentSchema.members]);
 
   // Original implementation as fallback
-  const acceptWorkspaceInvitationFallback = useCallback(async (joinCode: string): Promise<boolean> => {
-    // Find invitation by join code and check if it's still valid
-    const invitation = currentSchema.invitations.find(inv => 
-      inv.joinCode === joinCode.toUpperCase() && 
-      inv.status === 'pending' && 
-      new Date() <= inv.expiresAt
-    );
-
-    if (!invitation) {
-      return false;
-    }
-
-    // Mark invitation as accepted
-    setCurrentSchema(prev => ({
-      ...prev,
-      invitations: prev.invitations.map(inv =>
-        inv.joinCode === joinCode.toUpperCase() 
-          ? { ...inv, status: 'accepted' as const }
-          : inv
-      ),
-      updatedAt: new Date()
-    }));
-
-    // Add member to workspace
-    const newMember: WorkspaceMember = {
-      id: uuidv4(),
-      username: invitation.inviteeUsername,
-      role: invitation.role,
-      joinedAt: new Date()
-    };
-
-    // Add new member to workspace
-    setCurrentSchema(prev => ({
-      ...prev,
-      members: [...prev.members, newMember],
-      isShared: true,
-      updatedAt: new Date()
-    }));
-
-
-    return true;
-  }, [currentSchema.invitations]);
 
   const removeWorkspaceMember = useCallback((memberId: string) => {
     setCurrentSchema(prev => ({
@@ -1087,6 +1049,8 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     currentSchema,
     schemas,
     sqlEngine,
+    isRealTimeEnabled,
+    lastSyncTime,
     importSchema,
     addTable,
     removeTable,
@@ -1124,8 +1088,7 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     saveSchema,
     generateSQL,
     // Real-time collaboration state
-    isRealTimeEnabled,
-    lastSyncTime,
+    // Real-time collaboration state
   };
 
   return (

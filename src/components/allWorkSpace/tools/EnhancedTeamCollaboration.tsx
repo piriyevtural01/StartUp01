@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Send, UserPlus, Copy, Check, X, Clock, Shield, Globe, Lock, Crown, 
-  AlertCircle, Eye, Edit, Trash2, RefreshCw, Wifi, WifiOff, Settings 
+  AlertCircle, Eye, Edit, Trash2, RefreshCw, Wifi, WifiOff
 } from 'lucide-react';
 import { useSubscription } from '../../../context/SubscriptionContext';
-import { useDatabase, WorkspaceInvitation, WorkspaceMember } from '../../../context/DatabaseContext';
+import { useDatabase } from '../../../context/DatabaseContext';
 
 interface CollaborationStatus {
   isConnected: boolean;
@@ -165,7 +165,8 @@ const EnhancedTeamCollaboration: React.FC = () => {
         return;
       }
       
-    } catch (error) {
+    } catch (e) {
+      const error = e as Error
       console.error('Invitation error:', error);
       if (error.message?.includes('401')) {
         setInviteError('Authentication failed. Please log in again.');
@@ -393,7 +394,7 @@ const EnhancedTeamCollaboration: React.FC = () => {
               </span>
             </>
           )}
-          {isRealTimeEnabled && (
+          {currentSchema.isShared && (
             <>
               <span className="text-gray-300 dark:text-gray-600">•</span>
               <span className="text-green-600 dark:text-green-400 text-xs">
