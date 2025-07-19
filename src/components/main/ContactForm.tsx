@@ -1,8 +1,11 @@
 // contactForm.tsx
 import { useState } from 'react';
 import { Send, Mail, MessageSquare, Github, Twitter, Linkedin } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 const ContactForm = () => {
+  const { isDark } = useTheme();
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -34,13 +37,13 @@ const ContactForm = () => {
   };
 
   return (
-    <section id="contact" className="py-16 md:py-24 bg-white">
+    <section id="contact" className={`py-16 md:py-24 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+          <h2 className={`text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
             Get in <span className="text-[#3AAFF0]">Touch</span>
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto`}>
             Have questions about Database Creator? Reach out to us and we'll get back to you as soon as possible.
           </p>
         </div>
@@ -49,7 +52,7 @@ const ContactForm = () => {
           <div className="md:w-1/2">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="name" className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                   Name
                 </label>
                 <input
@@ -59,13 +62,13 @@ const ContactForm = () => {
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3AAFF0] focus:border-transparent outline-none transition-all"
+                  className={`w-full px-4 py-3 border ${isDark ? 'border-gray-600 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'} rounded-xl focus:ring-2 focus:ring-[#3AAFF0] focus:border-transparent outline-none transition-all`}
                   placeholder="Your name"
                 />
               </div>
               
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                   Email
                 </label>
                 <input
@@ -75,13 +78,13 @@ const ContactForm = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3AAFF0] focus:border-transparent outline-none transition-all"
+                  className={`w-full px-4 py-3 border ${isDark ? 'border-gray-600 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'} rounded-xl focus:ring-2 focus:ring-[#3AAFF0] focus:border-transparent outline-none transition-all`}
                   placeholder="Your email"
                 />
               </div>
               
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="message" className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                   Message
                 </label>
                 <textarea
@@ -91,7 +94,7 @@ const ContactForm = () => {
                   onChange={handleChange}
                   required
                   rows={5}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3AAFF0] focus:border-transparent outline-none transition-all"
+                  className={`w-full px-4 py-3 border ${isDark ? 'border-gray-600 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'} rounded-xl focus:ring-2 focus:ring-[#3AAFF0] focus:border-transparent outline-none transition-all`}
                   placeholder="Your message"
                 ></textarea>
               </div>
@@ -114,16 +117,16 @@ const ContactForm = () => {
             )}
           </div>
           
-          <div className="md:w-1/2 bg-[#E6F7FF] rounded-3xl p-8">
+          <div className={`md:w-1/2 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-[#E6F7FF]'} rounded-3xl p-8`}>
             {/* (Bu hissə tamamilə dəyişməz qaldı) */}
-            <h3 className="text-2xl font-bold text-gray-800 mb-6">Contact Information</h3>
+            <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-6`}>Contact Information</h3>
             <div className="space-y-6">
               <div className="flex items-start">
-                <div className="bg-white p-3 rounded-full shadow-md mr-4">
+                <div className={`${isDark ? 'bg-gray-700' : 'bg-white'} p-3 rounded-full shadow-md mr-4`}>
                   <Mail className="h-6 w-6 text-[#3AAFF0]" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-800 mb-1">Email</h4>
+                  <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>Email</h4>
                   <a href="mailto:piriyevtural00@gmail.com" className="text-[#3AAFF0] hover:text-[#007ACC]">
                     piriyevtural00@gmail.com
                   </a>
@@ -131,11 +134,11 @@ const ContactForm = () => {
               </div>
               
               <div className="flex items-start">
-                <div className="bg-white p-3 rounded-full shadow-md mr-4">
+                <div className={`${isDark ? 'bg-gray-700' : 'bg-white'} p-3 rounded-full shadow-md mr-4`}>
                   <MessageSquare className="h-6 w-6 text-[#3AAFF0]" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-800 mb-1">Support</h4>
+                  <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>Support</h4>
                   <a href="mailto:piriyevtural00@gmail.com" className="text-[#3AAFF0] hover:text-[#007ACC]">
                     piriyevtural00@gmail.com
                   </a>
@@ -144,24 +147,24 @@ const ContactForm = () => {
             </div>
             
             <div className="mt-10">
-              <h4 className="font-semibold text-gray-800 mb-4">Follow Us</h4>
+              <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>Follow Us</h4>
               <div className="flex space-x-4">
-                <a href="#" className="bg-white p-3 rounded-full shadow-md text-[#3AAFF0] hover:text-white hover:bg-[#3AAFF0] transition-colors">
+                <a href="#" className={`${isDark ? 'bg-gray-700' : 'bg-white'} p-3 rounded-full shadow-md text-[#3AAFF0] hover:text-white hover:bg-[#3AAFF0] transition-colors`}>
                   <Twitter className="h-5 w-5" />
                 </a>
-                <a href="#" className="bg-white p-3 rounded-full shadow-md text-[#3AAFF0] hover:text-white hover:bg-[#3AAFF0] transition-colors">
+                <a href="#" className={`${isDark ? 'bg-gray-700' : 'bg-white'} p-3 rounded-full shadow-md text-[#3AAFF0] hover:text-white hover:bg-[#3AAFF0] transition-colors`}>
                   <Github className="h-5 w-5" />
                 </a>
-                <a href="#" className="bg-white p-3 rounded-full shadow-md text-[#3AAFF0] hover:text-white hover:bg-[#3AAFF0] transition-colors">
+                <a href="#" className={`${isDark ? 'bg-gray-700' : 'bg-white'} p-3 rounded-full shadow-md text-[#3AAFF0] hover:text-white hover:bg-[#3AAFF0] transition-colors`}>
                   <Linkedin className="h-5 w-5" />
                 </a>
               </div>
             </div>
             
-            <div className="mt-10 p-6 bg-white rounded-2xl shadow-sm">
-              <h4 className="font-semibold text-gray-800 mb-3">Office Hours</h4>
-              <p className="text-gray-600 mb-2">Monday - Friday: 9am - 6pm EST</p>
-              <p className="text-gray-600">We typically respond within 24 hours</p>
+            <div className={`mt-10 p-6 ${isDark ? 'bg-gray-700' : 'bg-white'} rounded-2xl shadow-sm`}>
+              <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-3`}>Office Hours</h4>
+              <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-2`}>Monday - Friday: 9am - 6pm EST</p>
+              <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>We typically respond within 24 hours</p>
             </div>
           </div>
         </div>

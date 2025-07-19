@@ -1,7 +1,10 @@
 import BenefitCard from './BenefitCard';
 import { Code, Rocket, GraduationCap, Building2, Briefcase } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 const BenefitsSection = () => {
+  const { isDark } = useTheme();
+  
   const benefits = [
     {
       icon: <Code className="h-8 w-8 text-[#007ACC]" />,
@@ -31,13 +34,13 @@ const BenefitsSection = () => {
   ];
 
   return (
-    <section id="benefits" className="py-16 md:py-24 bg-[#E6F7FF]">
+    <section id="benefits" className={`py-16 md:py-24 ${isDark ? 'bg-gray-800' : 'bg-[#E6F7FF]'}`}>
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+          <h2 className={`text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
             Who is this <span className="text-[#3AAFF0]">for?</span>
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto`}>
             Database Creator is designed for anyone who needs to work with databases without the complexity
             of writing raw SQL or dealing with complex database management systems.
           </p>

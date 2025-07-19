@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react';
 import React from 'react';
+import { useTheme } from '../../context/ThemeContext';
 
 interface PlanCardProps {
   title: string;
@@ -20,12 +21,14 @@ const PlanCard = ({
   ctaText = 'Choose Plan',
   onSelect,
 }: PlanCardProps) => {
+  const { isDark } = useTheme();
+  
   return (
     <div
       className={`rounded-3xl overflow-hidden transition-all duration-300 ${
         highlighted
           ? 'bg-gradient-to-b from-[#007ACC] to-[#3AAFF0] text-white shadow-xl transform hover:scale-105'
-          : 'bg-white border border-gray-200 hover:shadow-xl'
+          : `${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border hover:shadow-xl`
       }`}
     >
       {highlighted && (
@@ -34,11 +37,11 @@ const PlanCard = ({
         </div>     
       )}
       <div className="p-8">
-        <h3 className={`text-2xl font-bold mb-2 ${highlighted ? 'text-white' : 'text-gray-800'}`}>
+        <h3 className={`text-2xl font-bold mb-2 ${highlighted ? 'text-white' : isDark ? 'text-white' : 'text-gray-800'}`}>
           {title}
         </h3>
         <div className="mb-4">
-          <span className={`text-4xl font-bold ${highlighted ? 'text-white' : 'text-gray-800'}`}>
+          <span className={`text-4xl font-bold ${highlighted ? 'text-white' : isDark ? 'text-white' : 'text-gray-800'}`}>
             {price}
           </span>
           {price !== 'Free' && (
@@ -49,7 +52,7 @@ const PlanCard = ({
         </div>
         <p
           className={`mb-6 ${
-            highlighted ? 'text-white opacity-90' : 'text-gray-600'
+            highlighted ? 'text-white opacity-90' : isDark ? 'text-gray-300' : 'text-gray-600'
           }`}
         >
           {description}
@@ -64,7 +67,7 @@ const PlanCard = ({
               />
               <span
                 className={`text-sm ${
-                  highlighted ? 'text-white opacity-90' : 'text-gray-600'
+                  highlighted ? 'text-white opacity-90' : isDark ? 'text-gray-300' : 'text-gray-600'
                 }`}
               >
                 {feature}

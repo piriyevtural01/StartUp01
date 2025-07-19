@@ -1,6 +1,6 @@
 // src/components/portfolio/PortfolioManager.tsx
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Folder, Calendar, Eye, Trash2, Plus } from 'lucide-react';
+import { ArrowRight, Folder, Calendar, Eye, Trash2, Plus, Upload, Code, FileText } from 'lucide-react';
 import { useDatabase } from '../../../context/DatabaseContext';
 import { usePortfolio, Portfolio } from '../../../context/PortfolioContext';
 
@@ -11,6 +11,7 @@ const PortfolioManager: React.FC = () => {
     saveSchema,
     generateSQL,
     importSchema,
+    importFromSQL,
   } = useDatabase();
 
   const {
@@ -22,6 +23,10 @@ const PortfolioManager: React.FC = () => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSchemaName, setNewSchemaName] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [sqlCode, setSqlCode] = useState('');
+  const [importError, setImportError] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     loadPortfolios();
@@ -207,6 +212,101 @@ const PortfolioManager: React.FC = () => {
                 className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded disabled:bg-gray-400"
               >
                 Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import SQL Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                  <Code className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Import SQL Code
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setSqlCode('');
+                  setImportError('');
+                }}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                <span className="sr-only">Close</span>
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                SQL Code
+              </label>
+              <textarea
+                value={sqlCode}
+                onChange={(e) => setSqlCode(e.target.value)}
+                className="w-full h-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-sm"
+                placeholder="Paste your SQL code here...
+
+Example:
+CREATE TABLE users (
+  id INT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE
+);
+
+INSERT INTO users (id, name, email) VALUES (1, 'John Doe', 'john@example.com');"
+                disabled={isImporting}
+              />
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Supports MySQL, PostgreSQL, and SQL Server syntax. Include CREATE TABLE and INSERT statements.
+              </p>
+            </div>
+
+            {importError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <FileText className="w-4 h-4" />
+                  <span className="font-medium">Import Error</span>
+                </div>
+                <p className="text-red-700 dark:text-red-300 text-sm mt-1">{importError}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setSqlCode('');
+                  setImportError('');
+                }}
+                disabled={isImporting}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImportSQL}
+                disabled={!sqlCode.trim() || isImporting}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors duration-200"
+              >
+                {isImporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    Import Schema
+                  </>
+                )}
               </button>
             </div>
           </div>

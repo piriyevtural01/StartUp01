@@ -1,14 +1,17 @@
 import { Play, FileText, Video } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 const HowToSection = () => {
+  const { isDark } = useTheme();
+  
   return (
-    <section id="how-to-use" className="py-16 md:py-24 bg-[#E6F7FF]">
+    <section id="how-to-use" className={`py-16 md:py-24 ${isDark ? 'bg-gray-800' : 'bg-[#E6F7FF]'}`}>
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+          <h2 className={`text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
             How to <span className="text-[#3AAFF0]">Use</span>
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto`}>
             Watch our quick tutorial to learn how to create and manage your database tables using Database Creator.
           </p>
         </div>
@@ -30,7 +33,7 @@ const HowToSection = () => {
           </div>
 
           <div className="lg:w-5/12">
-            <h3 className="text-2xl font-bold text-gray-800 mb-6">
+            <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-6`}>
               Getting Started is Easy
             </h3>
             
@@ -40,8 +43,8 @@ const HowToSection = () => {
                   1
                 </div>
                 <div>
-                  <h4 className="text-xl font-semibold text-gray-800 mb-2">Create a New Database</h4>
-                  <p className="text-gray-600">Start by creating a new database project and giving it a name.</p>
+                  <h4 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-2`}>Create a New Database</h4>
+                  <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>Start by creating a new database project and giving it a name.</p>
                 </div>
               </div>
               
@@ -50,8 +53,8 @@ const HowToSection = () => {
                   2
                 </div>
                 <div>
-                  <h4 className="text-xl font-semibold text-gray-800 mb-2">Add Tables and Fields</h4>
-                  <p className="text-gray-600">Use the visual designer to add tables and define fields with their data types.</p>
+                  <h4 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-2`}>Add Tables and Fields</h4>
+                  <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>Use the visual designer to add tables and define fields with their data types.</p>
                 </div>
               </div>
               
@@ -60,8 +63,8 @@ const HowToSection = () => {
                   3
                 </div>
                 <div>
-                  <h4 className="text-xl font-semibold text-gray-800 mb-2">Define Relationships</h4>
-                  <p className="text-gray-600">Connect tables to establish relationships between your data entities.</p>
+                  <h4 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-2`}>Define Relationships</h4>
+                  <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>Connect tables to establish relationships between your data entities.</p>
                 </div>
               </div>
               
@@ -70,8 +73,8 @@ const HowToSection = () => {
                   4
                 </div>
                 <div>
-                  <h4 className="text-xl font-semibold text-gray-800 mb-2">Export Your Schema</h4>
-                  <p className="text-gray-600">Export your database schema to SQL or other formats ready for implementation.</p>
+                  <h4 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-2`}>Export Your Schema</h4>
+                  <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>Export your database schema to SQL or other formats ready for implementation.</p>
                 </div>
               </div>
             </div>

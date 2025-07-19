@@ -174,12 +174,13 @@ export interface DatabaseContextType {
   createNewSchema: (name: string) => void;
   loadSchema: (schemaId: string) => void;
   saveSchema: () => void;
+  importFromSQL: (sqlCode: string) => Promise<boolean>;
   
   // SQL preview
   generateSQL: () => string;
   
   // Real-time collaboration state
-  
+ 
   inviteToWorkspace: (invitation: Omit<WorkspaceInvitation, 'id'|'workspaceId'|'createdAt'|'expiresAt'|'status'|'joinCode'>) => Promise<string>;
 
 }  
@@ -521,6 +522,143 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     }
   }, [currentSchema]);
 
+  // SQL Import functionality
+  const importFromSQL = useCallback(async (sqlCode: string): Promise<boolean> => {
+    try {
+      console.log('Importing SQL code:', sqlCode);
+      
+      // Parse SQL code to extract tables and structure
+      const parsedSchema = await parseSQLCode(sqlCode);
+      
+      if (parsedSchema.tables.length === 0) {
+        throw new Error('No valid tables found in SQL code');
+      }
+      
+      // Update current schema with parsed data
+      setCurrentSchema(prev => ({
+        ...prev,
+        tables: parsedSchema.tables,
+        relationships: parsedSchema.relationships,
+        indexes: parsedSchema.indexes,
+        updatedAt: new Date()
+      }));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to import SQL:', error);
+      return false;
+    }
+  }, []);
+
+  // SQL Parser function
+  const parseSQLCode = async (sqlCode: string) => {
+    const tables: Table[] = [];
+    const relationships: Relationship[] = [];
+    const indexes: Index[] = [];
+    
+    // Clean and normalize SQL
+    const cleanSQL = sqlCode
+      .replace(/--.*$/gm, '') // Remove comments
+      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+    
+    // Extract CREATE TABLE statements
+    const createTableRegex = /CREATE\s+TABLE\s+(?:`?(\w+)`?|"?(\w+)"?|\[?(\w+)\]?)\s*\(([\s\S]*?)\);?/gi;
+    let match;
+    
+    while ((match = createTableRegex.exec(cleanSQL)) !== null) {
+      const tableName = match[1] || match[2] || match[3];
+      const columnDefinitions = match[4];
+      
+      if (!tableName || !columnDefinitions) continue;
+      
+      const columns: Column[] = [];
+      
+      // Parse column definitions
+      const columnLines = columnDefinitions.split(',').map(line => line.trim());
+      
+      columnLines.forEach(line => {
+        // Skip constraint definitions
+        if (line.toUpperCase().includes('PRIMARY KEY') || 
+            line.toUpperCase().includes('FOREIGN KEY') || 
+            line.toUpperCase().includes('CONSTRAINT')) {
+          return;
+        }
+        
+        // Parse column definition
+        const columnMatch = line.match(/(?:`?(\w+)`?|"?(\w+)"?|\[?(\w+)\]?)\s+(\w+(?:\(\d+(?:,\d+)?\))?)/i);
+        if (columnMatch) {
+          const columnName = columnMatch[1] || columnMatch[2] || columnMatch[3];
+          const dataType = columnMatch[4];
+          
+          const column: Column = {
+            id: uuidv4(),
+            name: columnName,
+            type: dataType.toUpperCase(),
+            nullable: !line.toUpperCase().includes('NOT NULL'),
+            isPrimaryKey: line.toUpperCase().includes('PRIMARY KEY'),
+            isUnique: line.toUpperCase().includes('UNIQUE'),
+            isIndexed: false,
+            isForeignKey: false
+          };
+          
+          // Extract default value
+          const defaultMatch = line.match(/DEFAULT\s+(?:'([^']*)'|(\w+))/i);
+          if (defaultMatch) {
+            column.defaultValue = defaultMatch[1] || defaultMatch[2];
+          }
+          
+          columns.push(column);
+        }
+      });
+      
+      if (columns.length > 0) {
+        const table: Table = {
+          id: uuidv4(),
+          name: tableName,
+          columns,
+          position: { 
+            x: Math.random() * 400 + 100, 
+            y: Math.random() * 300 + 100 
+          },
+          rowCount: 0,
+          data: []
+        };
+        
+        tables.push(table);
+      }
+    }
+    
+    // Extract INSERT statements and populate data
+    const insertRegex = /INSERT\s+INTO\s+(?:`?(\w+)`?|"?(\w+)"?|\[?(\w+)\]?)\s*\((.*?)\)\s*VALUES\s*\((.*?)\);?/gi;
+    
+    while ((match = insertRegex.exec(cleanSQL)) !== null) {
+      const tableName = match[1] || match[2] || match[3];
+      const columnNames = match[4].split(',').map(col => col.trim().replace(/[`"[\]]/g, ''));
+      const values = match[5].split(',').map(val => {
+        val = val.trim();
+        if (val === 'NULL') return null;
+        if (val === 'TRUE' || val === '1') return true;
+        if (val === 'FALSE' || val === '0') return false;
+        if (val.startsWith("'") && val.endsWith("'")) return val.slice(1, -1);
+        if (!isNaN(Number(val))) return Number(val);
+        return val;
+      });
+      
+      const table = tables.find(t => t.name === tableName);
+      if (table && columnNames.length === values.length) {
+        const rowData: Record<string, any> = {};
+        columnNames.forEach((colName, index) => {
+          rowData[colName] = values[index];
+        });
+        table.data.push(rowData);
+        table.rowCount = table.data.length;
+      }
+    }
+    
+    return { tables, relationships, indexes };
+  };
 
   const addTable = useCallback((table: Omit<Table, 'id' | 'rowCount' | 'data'>) => {
     const newTable: Table = {
@@ -962,27 +1100,28 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
 
   const exportSchema = useCallback((format: string) => {
     const { tables, relationships, indexes, constraints, users, permissions } = currentSchema;
+    const databaseName = currentSchema.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     
     let script = '';
     
     switch (format.toLowerCase()) {
       case 'mysql':
-        script = generateMySQLScript(tables, relationships, indexes, constraints, users, permissions);
+        script = generateMySQLScript(tables, relationships, indexes, constraints, users, permissions, databaseName);
         break;
       case 'postgresql':
-        script = generatePostgreSQLScript(tables, relationships, indexes, constraints, users, permissions);
+        script = generatePostgreSQLScript(tables, relationships, indexes, constraints, users, permissions, databaseName);
         break;
       case 'sqlserver':
-        script = generateSQLServerScript(tables, relationships, indexes, constraints, users, permissions);
+        script = generateSQLServerScript(tables, relationships, indexes, constraints, users, permissions, databaseName);
         break;
       case 'oracle':
-        script = generateOracleScript(tables, relationships, indexes, constraints, users, permissions);
+        script = generateOracleScript(tables, relationships, indexes, constraints, users, permissions, databaseName);
         break;
       case 'mongodb':
-        script = generateMongoDBScript(tables);
+        script = generateMongoDBScript(tables, databaseName);
         break;
       default:
-        script = generateMySQLScript(tables, relationships, indexes, constraints, users, permissions);
+        script = generateMySQLScript(tables, relationships, indexes, constraints, users, permissions, databaseName);
     }
     
     return script;
@@ -1086,9 +1225,10 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
     createNewSchema,
     loadSchema,
     saveSchema,
+    importFromSQL,
     generateSQL,
     // Real-time collaboration state
-    // Real-time collaboration state
+  
   };
 
   return (
@@ -1099,10 +1239,18 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
 };
 
 // SQL generation functions (keeping existing implementations)
-function generateMySQLScript(tables: Table[], relationships: Relationship[], indexes: Index[], _constraints: Constraint[], users: User[], permissions: Permission[]): string {
-  let script = '-- MySQL Database Schema\n-- Generated by Database Creator\n\n';
+function generateMySQLScript(tables: Table[], relationships: Relationship[], indexes: Index[], _constraints: Constraint[], users: User[], permissions: Permission[], databaseName: string = 'database_export'): string {
+  let script = `-- MySQL Database Schema Export
+-- Generated by Database Creator on ${new Date().toISOString()}
+-- ================================================================
+
+-- 1. Create Database
+CREATE DATABASE IF NOT EXISTS \`${databaseName}\`;
+USE \`${databaseName}\`;
+
+-- 2. Create Tables
+`;
   
-  // Create tables
   tables.forEach(table => {
     script += `CREATE TABLE \`${table.name}\` (\n`;
     const columnDefs = table.columns.map(col => {
@@ -1111,11 +1259,36 @@ function generateMySQLScript(tables: Table[], relationships: Relationship[], ind
       if (col.defaultValue) def += ` DEFAULT '${col.defaultValue}'`;
       if (col.isPrimaryKey) def += ' PRIMARY KEY';
       if (col.isUnique) def += ' UNIQUE';
+      if (col.type.includes('BOOLEAN')) {
+        def = def.replace(col.type, 'BOOLEAN');
+      }
       return def;
     });
     script += columnDefs.join(',\n') + '\n';
     script += ');\n\n';
   });
+  
+  // 3. Insert Data
+  script += '-- 3. Insert Data\n';
+  tables.forEach(table => {
+    if (table.data && table.data.length > 0) {
+      script += `-- Data for table \`${table.name}\`\n`;
+      table.data.forEach(row => {
+        const columns = Object.keys(row).map(col => `\`${col}\``).join(', ');
+        const values = Object.values(row).map(val => {
+          if (val === null || val === undefined) return 'NULL';
+          if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+          if (typeof val === 'number') return val.toString();
+          return `'${val.toString().replace(/'/g, "''")}'`;
+        }).join(', ');
+        script += `INSERT INTO \`${table.name}\` (${columns}) VALUES (${values});\n`;
+      });
+      script += '\n';
+    }
+  });
+  
+  // 4. Constraints & Indexes
+  script += '-- 4. Constraints & Indexes\n';
   
   // Create indexes
   indexes.forEach(index => {
@@ -1142,6 +1315,8 @@ function generateMySQLScript(tables: Table[], relationships: Relationship[], ind
   
   if (relationships.length > 0) script += '\n';
   
+  // 5. Users and Permissions
+  script += '-- 5. Users and Permissions\n';
   // Create users and permissions
   users.forEach(user => {
     script += `CREATE USER '${user.name}'@'localhost';\n`;
@@ -1160,12 +1335,26 @@ function generateMySQLScript(tables: Table[], relationships: Relationship[], ind
 }
 
 function generatePostgreSQLScript(tables: Table[], _relationships: Relationship[], _indexes: Index[], _constraints: Constraint[], _users: User[], _permissions: Permission[]): string {
-  let script = '-- PostgreSQL Database Schema\n-- Generated by Database Creator\n\n';
+  let script = `-- PostgreSQL Database Schema Export
+-- Generated by Database Creator on ${new Date().toISOString()}
+-- ================================================================
+
+-- 1) Create database and schema
+CREATE DATABASE database_export;
+\\c database_export;
+CREATE SCHEMA IF NOT EXISTS public;
+SET search_path TO public;
+
+-- 2) Create tables
+`;
   
   tables.forEach(table => {
     script += `CREATE TABLE "${table.name}" (\n`;
     const columnDefs = table.columns.map(col => {
       let def = `  "${col.name}" ${col.type}`;
+      if (col.type.includes('BOOLEAN')) {
+        def = def.replace(col.type, 'BOOLEAN');
+      }
       if (!col.nullable) def += ' NOT NULL';
       if (col.defaultValue) def += ` DEFAULT '${col.defaultValue}'`;
       if (col.isPrimaryKey) def += ' PRIMARY KEY';
@@ -1176,16 +1365,73 @@ function generatePostgreSQLScript(tables: Table[], _relationships: Relationship[
     script += ');\n\n';
   });
   
+  // 3) Insert data
+  script += '-- 3) Insert data\n';
+  tables.forEach(table => {
+    if (table.data && table.data.length > 0) {
+      script += `-- Data for table "${table.name}"\n`;
+      table.data.forEach(row => {
+        const columns = Object.keys(row).map(col => `"${col}"`).join(', ');
+        const values = Object.values(row).map(val => {
+          if (val === null || val === undefined) return 'NULL';
+          if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+          if (typeof val === 'number') return val.toString();
+          return `'${val.toString().replace(/'/g, "''")}'`;
+        }).join(', ');
+        script += `INSERT INTO "${table.name}" (${columns}) VALUES (${values});\n`;
+      });
+      script += '\n';
+    }
+  });
+  
+  // 4) Constraints & indexes
+  script += '-- 4) Constraints & indexes\n';
+  
+  // Create indexes
+  _indexes.forEach(index => {
+    const table = tables.find(t => t.id === index.tableId);
+    if (table) {
+      const uniqueStr = index.isUnique ? 'UNIQUE ' : '';
+      script += `CREATE ${uniqueStr}INDEX "${index.name}" ON "${table.name}" (${index.columns.map(c => `"${c}"`).join(', ')});\n`;
+    }
+  });
+  
+  // Create foreign keys
+  _relationships.forEach(rel => {
+    const sourceTable = tables.find(t => t.id === rel.sourceTableId);
+    const targetTable = tables.find(t => t.id === rel.targetTableId);
+    const sourceColumn = sourceTable?.columns.find(c => c.id === rel.sourceColumnId);
+    const targetColumn = targetTable?.columns.find(c => c.id === rel.targetColumnId);
+    
+    if (sourceTable && targetTable && sourceColumn && targetColumn) {
+      script += `ALTER TABLE "${sourceTable.name}" ADD CONSTRAINT "fk_${sourceTable.name}_${sourceColumn.name}" FOREIGN KEY ("${sourceColumn.name}") REFERENCES "${targetTable.name}"("${targetColumn.name}");\n`;
+    }
+  });
+  
   return script;
 }
 
-function generateSQLServerScript(tables: Table[], _relationships: Relationship[], _indexes: Index[], _constraints: Constraint[], _users: User[], _permissions: Permission[]): string {
-  let script = '-- SQL Server Database Schema\n-- Generated by Database Creator\n\n';
+function generateSQLServerScript(tables: Table[], relationships: Relationship[], indexes: Index[], _constraints: Constraint[], _users: User[], _permissions: Permission[], databaseName: string = 'database_export'): string {
+  let script = `-- SQL Server Database Schema Export
+-- Generated by Database Creator on ${new Date().toISOString()}
+-- ================================================================
+
+-- 1. Create Database
+CREATE DATABASE [${databaseName}];
+GO
+USE [${databaseName}];
+GO
+
+-- 2. Create Tables
+`;
   
   tables.forEach(table => {
     script += `CREATE TABLE [${table.name}] (\n`;
     const columnDefs = table.columns.map(col => {
       let def = `  [${col.name}] ${col.type}`;
+      if (col.type.includes('BOOLEAN')) {
+        def = def.replace(col.type, 'BIT');
+      }
       if (!col.nullable) def += ' NOT NULL';
       if (col.defaultValue) def += ` DEFAULT '${col.defaultValue}'`;
       if (col.isPrimaryKey) def += ' PRIMARY KEY';
@@ -1196,53 +1442,202 @@ function generateSQLServerScript(tables: Table[], _relationships: Relationship[]
     script += ');\n\n';
   });
   
+  // 3. Insert Data
+  script += '-- 3. Insert Data\n';
+  tables.forEach(table => {
+    if (table.data && table.data.length > 0) {
+      script += `-- Data for table [${table.name}]\n`;
+      table.data.forEach(row => {
+        const columns = Object.keys(row).map(col => `[${col}]`).join(', ');
+        const values = Object.values(row).map(val => {
+          if (val === null || val === undefined) return 'NULL';
+          if (typeof val === 'boolean') return val ? '1' : '0';
+          if (typeof val === 'number') return val.toString();
+          return `'${val.toString().replace(/'/g, "''")}'`;
+        }).join(', ');
+        script += `INSERT INTO [${table.name}] (${columns}) VALUES (${values});\n`;
+      });
+      script += 'GO\n\n';
+    }
+  });
+  
+  // 4. Constraints & Indexes
+  script += '-- 4. Constraints & Indexes\n';
+  
+  // Create indexes
+  indexes.forEach(index => {
+    const table = tables.find(t => t.id === index.tableId);
+    if (table) {
+      const uniqueStr = index.isUnique ? 'UNIQUE ' : '';
+      script += `CREATE ${uniqueStr}INDEX [${index.name}] ON [${table.name}] (${index.columns.map(c => `[${c}]`).join(', ')});\nGO\n`;
+    }
+  });
+  
+  // Create foreign keys
+  relationships.forEach(rel => {
+    const sourceTable = tables.find(t => t.id === rel.sourceTableId);
+    const targetTable = tables.find(t => t.id === rel.targetTableId);
+    const sourceColumn = sourceTable?.columns.find(c => c.id === rel.sourceColumnId);
+    const targetColumn = targetTable?.columns.find(c => c.id === rel.targetColumnId);
+    
+    if (sourceTable && targetTable && sourceColumn && targetColumn) {
+      script += `ALTER TABLE [${sourceTable.name}] ADD CONSTRAINT [FK_${sourceTable.name}_${sourceColumn.name}] FOREIGN KEY ([${sourceColumn.name}]) REFERENCES [${targetTable.name}]([${targetColumn.name}]);\nGO\n`;
+    }
+  });
+  
   return script;
 }
 
-function generateOracleScript(tables: Table[], _relationships: Relationship[], _indexes: Index[], _constraints: Constraint[], _users: User[], _permissions: Permission[]): string {
-  let script = '-- Oracle Database Schema\n-- Generated by Database Creator\n\n';
+function generateOracleScript(tables: Table[], relationships: Relationship[], indexes: Index[], _constraints: Constraint[], _users: User[], _permissions: Permission[], databaseName: string = 'database_export'): string {
+  let script = `-- Oracle Database Schema Export
+-- Generated by Database Creator on ${new Date().toISOString()}
+-- ================================================================
+
+-- 1. Create User and Schema (run as SYSDBA)
+-- CREATE USER ${databaseName} IDENTIFIED BY password;
+-- GRANT CONNECT, RESOURCE TO ${databaseName};
+-- ALTER USER ${databaseName} DEFAULT TABLESPACE USERS;
+
+-- 2. Create Tables
+`;
   
   tables.forEach(table => {
     script += `CREATE TABLE ${table.name} (\n`;
     const columnDefs = table.columns.map(col => {
       let def = `  ${col.name} ${col.type}`;
+      if (col.type.includes('BOOLEAN')) {
+        def = def.replace(col.type, 'NUMBER(1)');
+      }
       if (!col.nullable) def += ' NOT NULL';
       if (col.defaultValue) def += ` DEFAULT '${col.defaultValue}'`;
+      if (col.isPrimaryKey) def += ' PRIMARY KEY';
       return def;
     });
     script += columnDefs.join(',\n') + '\n';
     script += ');\n\n';
   });
   
+  // 3. Insert Data
+  script += '-- 3. Insert Data\n';
+  tables.forEach(table => {
+    if (table.data && table.data.length > 0) {
+      script += `-- Data for table ${table.name}\n`;
+      table.data.forEach(row => {
+        const columns = Object.keys(row).join(', ');
+        const values = Object.values(row).map(val => {
+          if (val === null || val === undefined) return 'NULL';
+          if (typeof val === 'boolean') return val ? '1' : '0';
+          if (typeof val === 'number') return val.toString();
+          return `'${val.toString().replace(/'/g, "''")}'`;
+        }).join(', ');
+        script += `INSERT INTO ${table.name} (${columns}) VALUES (${values});\n`;
+      });
+      script += '\n';
+    }
+  });
+  
+  // 4. Constraints & Indexes
+  script += '-- 4. Constraints & Indexes\n';
+  
+  // Create indexes
+  indexes.forEach(index => {
+    const table = tables.find(t => t.id === index.tableId);
+    if (table) {
+      const uniqueStr = index.isUnique ? 'UNIQUE ' : '';
+      script += `CREATE ${uniqueStr}INDEX ${index.name} ON ${table.name} (${index.columns.join(', ')});\n`;
+    }
+  });
+  
+  // Create foreign keys
+  relationships.forEach(rel => {
+    const sourceTable = tables.find(t => t.id === rel.sourceTableId);
+    const targetTable = tables.find(t => t.id === rel.targetTableId);
+    const sourceColumn = sourceTable?.columns.find(c => c.id === rel.sourceColumnId);
+    const targetColumn = targetTable?.columns.find(c => c.id === rel.targetColumnId);
+    
+    if (sourceTable && targetTable && sourceColumn && targetColumn) {
+      script += `ALTER TABLE ${sourceTable.name} ADD CONSTRAINT FK_${sourceTable.name}_${sourceColumn.name} FOREIGN KEY (${sourceColumn.name}) REFERENCES ${targetTable.name}(${targetColumn.name});\n`;
+    }
+  });
+  
+  script += '\nCOMMIT;\n';
   return script;
 }
 
-function generateMongoDBScript(tables: Table[]): string {
-  let script = '// MongoDB Collection Schema\n// Generated by Database Creator\n\n';
+function generateMongoDBScript(tables: Table[], databaseName: string = 'database_export'): string {
+  let script = `// MongoDB Database Export
+// Generated by Database Creator on ${new Date().toISOString()}
+// ================================================================
+
+// 1. Use Database
+use('${databaseName}');
+
+// 2. Create Collections and Insert Data
+`;
   
   tables.forEach(table => {
-    script += `// Collection: ${table.name}\n`;
+    script += `\n// Collection: ${table.name}\n`;
     script += `db.createCollection("${table.name}");\n\n`;
     
+    // Insert data
+    if (table.data && table.data.length > 0) {
+      script += `// Insert data for ${table.name}\n`;
+      script += `db.${table.name}.insertMany([\n`;
+      const documents = table.data.map(row => {
+        const doc: Record<string, any> = {};
+        table.columns.forEach(col => {
+          let value = row[col.name];
+          if (value !== undefined && value !== null) {
+            if (col.type.includes('INT') || col.type.includes('DECIMAL') || col.type.includes('FLOAT')) {
+              value = Number(value);
+            } else if (col.type.includes('BOOLEAN')) {
+              value = Boolean(value);
+            } else if (col.type.includes('DATE')) {
+              value = new Date(value);
+            }
+            doc[col.name] = value;
+          }
+        });
+        return '  ' + JSON.stringify(doc, null, 2).replace(/\n/g, '\n  ');
+      });
+      script += documents.join(',\n') + '\n]);\n\n';
+    }
+    
+    // Schema validation
     const schema = {
       $jsonSchema: {
         bsonType: "object",
         required: table.columns.filter(col => !col.nullable).map(col => col.name),
-        properties: {}
+        properties: {} as Record<string, any>
       }
     };
     
     table.columns.forEach(col => {
-      schema.$jsonSchema.properties[col.name] = {
-        bsonType: col.type === 'INT' ? 'int' : 'string',
+      let bsonType = 'string';
+      if (col.type.includes('INT')) bsonType = 'int';
+      else if (col.type.includes('DECIMAL') || col.type.includes('FLOAT')) bsonType = 'double';
+      else if (col.type.includes('BOOLEAN')) bsonType = 'bool';
+      else if (col.type.includes('DATE')) bsonType = 'date';
+      
+      (schema.$jsonSchema.properties as Record<string, any>)[col.name] = {
+        bsonType,
         description: `${col.name} field`
       };
     });
     
+    script += `// Schema validation for ${table.name}\n`;
     script += `db.runCommand({\n`;
     script += `  collMod: "${table.name}",\n`;
     script += `  validator: ${JSON.stringify(schema, null, 2)}\n`;
     script += `});\n\n`;
+    
+    // Create indexes
+    table.columns.forEach(col => {
+      if (col.isPrimaryKey || col.isUnique || col.isIndexed) {
+        const unique = col.isPrimaryKey || col.isUnique ? ', { unique: true }' : '';
+        script += `db.${table.name}.createIndex({ "${col.name}": 1 }${unique});\n`;
+      }
+    });
   });
   
   return script;

@@ -40,8 +40,10 @@ const TableNode: React.FC<TableNodeProps> = memo(({ data, selected }) => {
   };
 
   const handleEditTable = () => {
-    // This will be implemented later with a proper edit modal
-    alert('Edit Structure feature will be implemented soon!');
+    // Open the alter table modal with this table preselected
+    window.dispatchEvent(new CustomEvent('openAlterTable', { 
+      detail: { tableId: data.id } 
+    }));
     setShowMenu(false);
   };
 

@@ -1,8 +1,11 @@
 // src/components/main/PlansSection.tsx
 import React from 'react';
 import PlanCard from './PlanCard';
+import { useTheme } from '../../context/ThemeContext';
 
 const PlansSection: React.FC = () => {
+  const { isDark } = useTheme();
+  
   const plans = [
     {
       title: 'Free',
@@ -62,13 +65,13 @@ const PlansSection: React.FC = () => {
   ];
 
   return (
-    <section id="subscription" className="py-16 md:py-24 bg-white">
+    <section id="subscription" className={`py-16 md:py-24 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+          <h2 className={`text-3xl md:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
             Subscription <span className="text-[#3AAFF0]">Plans</span>
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto`}>
             Choose the plan that fits your needs. All plans include access to our visual database designer
             with different capabilities and limits.
           </p>
@@ -90,7 +93,7 @@ const PlansSection: React.FC = () => {
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">
+          <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-4`}>
             Need a custom plan for your enterprise?
           </p>
           <a

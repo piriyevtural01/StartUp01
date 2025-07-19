@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Table, Columns } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Plus, Edit, Trash2, Table, Columns, Settings } from 'lucide-react';
 import { useDatabase, Column } from '../../../context/DatabaseContext';
 import { useSubscription } from '../../../context/SubscriptionContext'; // Added subscription context
+import FeatureGate from '../../subscription/FeatureGate'// Added feature gate
 import { v4 as uuidv4 } from 'uuid';
 
 const ZeroCodeDDLBuilder: React.FC = () => {
@@ -11,6 +12,7 @@ const ZeroCodeDDLBuilder: React.FC = () => {
   
   const [activeModal, setActiveModal] = useState<'create' | 'alter' | 'drop' | null>(null);
   const [selectedTable, setSelectedTable] = useState<string>('');
+  const [preselectedTableId, setPreselectedTableId] = useState<string>('');
   const [tableForm, setTableForm] = useState({
     name: '',
     columns: [] as Omit<Column, 'id'>[]
@@ -25,6 +27,22 @@ const ZeroCodeDDLBuilder: React.FC = () => {
     'TEXT', 'LONGTEXT', 'MEDIUMTEXT',
     'JSON', 'BLOB', 'LONGBLOB'
   ];
+
+  // Listen for external table edit requests
+   useEffect(() => {
+    const handleOpenAlterTable = (event: CustomEvent) => {
+      const { tableId } = event.detail;
+      if (tableId) {
+        setPreselectedTableId(tableId);
+        openAlterModal(tableId);
+      }
+    };
+
+    window.addEventListener('openAlterTable', handleOpenAlterTable as EventListener);
+    return () => {
+      window.removeEventListener('openAlterTable', handleOpenAlterTable as EventListener);
+    };
+  }, []);
 
   const openCreateModal = () => {
     // Check table limit before allowing creation
@@ -197,6 +215,11 @@ const ZeroCodeDDLBuilder: React.FC = () => {
             <div className="text-left">
               <div className="font-medium text-blue-800 dark:text-blue-200">Alter Table</div>
               <div className="text-sm text-blue-600 dark:text-blue-400">Modify existing table structure</div>
+              {preselectedTableId && (
+                <div className="text-xs text-blue-500 dark:text-blue-300 mt-1">
+                  Table selected: {currentSchema.tables.find(t => t.id === preselectedTableId)?.name}
+                </div>
+              )}
             </div>
           </button>
 
@@ -425,9 +448,44 @@ const ZeroCodeDDLBuilder: React.FC = () => {
             {activeModal === 'alter' && (
               <>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Alter Table: {tableForm.name}
+                  Alter Table
                 </h3>
                 
+                {/* Table Selection Dropdown */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Select Table to Alter
+                  </label>
+                  <select
+                    value={selectedTable}
+                    onChange={(e) => {
+                      const tableId = e.target.value;
+                      if (tableId) {
+                        openAlterModal(tableId);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                  >
+                    <option value="">Choose a table to modify</option>
+                    {currentSchema.tables.map(table => (
+                      <option key={table.id} value={table.id}>
+                        {table.name} ({table.columns.length} columns)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedTable && (
+                  <>
+                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-1">
+                        Editing: {tableForm.name}
+                      </h4>
+                      <p className="text-sm text-blue-600 dark:text-blue-400">
+                        Add, remove, or modify columns for this table
+                      </p>
+                    </div>
+
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -480,6 +538,8 @@ const ZeroCodeDDLBuilder: React.FC = () => {
                     ))}
                   </div>
                 </div>
+                  </>
+                )}
 
                 <div className="flex gap-3 justify-end">
                   <button
@@ -490,6 +550,7 @@ const ZeroCodeDDLBuilder: React.FC = () => {
                   </button>
                   <button
                     onClick={handleAlterTable}
+                    disabled={!selectedTable}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
                   >
                     Alter Table

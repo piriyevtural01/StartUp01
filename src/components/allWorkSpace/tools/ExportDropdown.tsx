@@ -31,7 +31,8 @@ const ExportDropdown: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentSchema.name.toLowerCase().replace(/\s+/g, '_')}_${format}.sql`;
+    const fileName = `export_${format}.${format === 'mongodb' ? 'js' : 'sql'}`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
