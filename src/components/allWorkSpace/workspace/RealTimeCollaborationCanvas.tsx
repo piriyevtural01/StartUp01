@@ -15,7 +15,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useDatabase } from '../../../context/DatabaseContext';
 import EnhancedTableNode from './EnhancedTableNode';
-import { Users, Eye, Edit, Cursor } from 'lucide-react';
+import { Users, Eye, Edit, TextCursor as Cursor } from 'lucide-react';
 
 interface CollaboratorCursor {
   userId: string;
