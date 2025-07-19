@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Code, Eye, AlertTriangle, CheckCircle } from 'lucide-react';
-import DatabaseCanvas from '../workspace/DatabaseCanvas';
+import RealTimeCollaborationCanvas from '../workspace/RealTimeCollaborationCanvas';
 import SQLPreviewModal from '../workspace/SQLPreviewModal';
 import RealTimeCollaboration from '../../collabration/RealTimeCollaboration';
 import { useDatabase } from '../../../context/DatabaseContext';
@@ -129,6 +129,7 @@ const EnhancedWorkspacePanel: React.FC = () => {
 
       {/* Canvas */}
       <DatabaseCanvas 
+      <RealTimeCollaborationCanvas 
         zoom={zoom} 
         pan={pan} 
         onPanChange={setPan}

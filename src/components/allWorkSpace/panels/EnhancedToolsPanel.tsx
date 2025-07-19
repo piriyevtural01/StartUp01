@@ -18,14 +18,15 @@ import { useDatabase } from '../../../context/DatabaseContext';
 import AdvancedTableBuilder from '../tools/AdvancedTableBuilder';
 import ZeroCodeCRUDBuilder from '../tools/ZeroCodeCRUDBuilder';
 import VisualQueryBuilder from '../tools/VisualQueryBuilder';
-import RelationshipVisualizer from '../tools/RelationshipVisualizer';
+import AdvancedRelationshipBuilder from '../tools/AdvancedRelationshipBuilder';
 import SecurityManager from '../tools/SecurityManager';
 import EnhancedTeamCollaboration from '../tools/EnhancedTeamCollaboration';
 import SmartExportManager from '../tools/SmartExportManager';
-import SQLEditor from '../tools/SQLEditor';
+import LiveSQLEditor from '../tools/LiveSQLEditor';
+import EnhancedAlterTableEditor from '../tools/EnhancedAlterTableEditor';
 import ValidationPanel from '../workspace/ValidationPanel';
 
-type ActiveTool = 'tables' | 'crud' | 'query' | 'relationships' | 'security' | 'team' | 'export' | 'sql' | 'validation' | null;
+type ActiveTool = 'tables' | 'alter' | 'crud' | 'query' | 'relationships' | 'security' | 'team' | 'export' | 'sql' | 'validation' | null;
 
 const EnhancedToolsPanel: React.FC = () => {
   const { currentPlan } = useSubscription();
@@ -43,6 +44,14 @@ const EnhancedToolsPanel: React.FC = () => {
       description: 'Create and manage table structures',
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-50 dark:bg-green-900/20'
+    },
+    {
+      id: 'alter' as const,
+      name: 'ALTER',
+      icon: Edit,
+      description: 'Modify existing table structures',
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-50 dark:bg-orange-900/20'
     },
     {
       id: 'crud' as const,
@@ -160,13 +169,14 @@ const EnhancedToolsPanel: React.FC = () => {
       {/* Active Tool Content */}
       <div className="flex-1 overflow-hidden">
         {activeTool === 'tables' && <AdvancedTableBuilder />}
+        {activeTool === 'alter' && <EnhancedAlterTableEditor />}
         {activeTool === 'crud' && <ZeroCodeCRUDBuilder />}
         {activeTool === 'query' && <VisualQueryBuilder />}
-        {activeTool === 'relationships' && <RelationshipVisualizer />}
+        {activeTool === 'relationships' && <AdvancedRelationshipBuilder />}
         {activeTool === 'security' && <SecurityManager />}
         {activeTool === 'team' && <EnhancedTeamCollaboration />}
         {activeTool === 'export' && <SmartExportManager />}
-        {activeTool === 'sql' && <SQLEditor />}
+        {activeTool === 'sql' && <LiveSQLEditor />}
         {activeTool === 'validation' && <ValidationPanel />}
         
         {!activeTool && (

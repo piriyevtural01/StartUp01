@@ -77,6 +77,12 @@ const EnhancedDatabaseCanvasInner: React.FC<EnhancedDatabaseCanvasProps> = ({
       };
 
       const edgeColor = getEdgeColor(relationship.cardinality);
+      
+      // Check if relationship has validation errors
+      const hasErrors = validationErrors.some(e => e.relationshipId === relationship.id && e.type === 'error');
+      const hasWarnings = validationErrors.some(e => e.relationshipId === relationship.id && e.type === 'warning');
+      
+      const finalColor = hasErrors ? '#EF4444' : hasWarnings ? '#F59E0B' : edgeColor;
 
       return {
         id: relationship.id,
@@ -85,15 +91,15 @@ const EnhancedDatabaseCanvasInner: React.FC<EnhancedDatabaseCanvasProps> = ({
         sourceHandle: relationship.sourceColumnId,
         targetHandle: relationship.targetColumnId,
         type: 'smoothstep',
-        animated: true,
+        animated: !hasErrors, // Stop animation if there are errors
         style: { 
-          stroke: edgeColor, 
-          strokeWidth: 2,
-          strokeDasharray: relationship.cardinality === 'N:M' ? '5,5' : undefined
+          stroke: finalColor, 
+          strokeWidth: hasErrors ? 3 : 2,
+          strokeDasharray: hasErrors ? '10,5' : relationship.cardinality === 'N:M' ? '5,5' : undefined
         },
-        label: relationship.cardinality,
+        label: hasErrors ? '⚠️ ' + relationship.cardinality : relationship.cardinality,
         labelBgStyle: { 
-          fill: '#ffffff', 
+          fill: hasErrors ? '#FEF2F2' : hasWarnings ? '#FFFBEB' : '#ffffff', 
           fillOpacity: 0.9,
           rx: 4,
           ry: 4
@@ -101,11 +107,11 @@ const EnhancedDatabaseCanvasInner: React.FC<EnhancedDatabaseCanvasProps> = ({
         labelStyle: { 
           fontSize: 11, 
           fontWeight: 600,
-          color: edgeColor
+          color: finalColor
         },
         markerEnd: {
           type: 'arrowclosed',
-          color: edgeColor,
+          color: finalColor,
           width: 20,
           height: 20
         },
@@ -113,7 +119,9 @@ const EnhancedDatabaseCanvasInner: React.FC<EnhancedDatabaseCanvasProps> = ({
           relationship,
           sourceTable: sourceTable?.name,
           targetTable: targetTable?.name,
-          constraintName: relationship.constraintName
+          constraintName: relationship.constraintName,
+          hasErrors,
+          hasWarnings
         }
       };
     });

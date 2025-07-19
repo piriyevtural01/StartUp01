@@ -271,6 +271,36 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       errors.push(...validateRelationship(relationship));
     });
 
+    // Check for circular foreign key references
+    const checkCircularReferences = (tableId: string, visited: Set<string> = new Set()): boolean => {
+      if (visited.has(tableId)) return true;
+      visited.add(tableId);
+      
+      const table = currentSchema.tables.find(t => t.id === tableId);
+      if (!table) return false;
+      
+      for (const column of table.columns) {
+        if (column.isForeignKey && column.referencedTable) {
+          const referencedTable = currentSchema.tables.find(t => t.name === column.referencedTable);
+          if (referencedTable && checkCircularReferences(referencedTable.id, new Set(visited))) {
+            errors.push({
+              type: 'error',
+              message: `Circular foreign key reference detected involving table "${table.name}"`,
+              tableId: table.id,
+              columnId: column.id
+            });
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    };
+    
+    currentSchema.tables.forEach(table => {
+      checkCircularReferences(table.id);
+    });
+
     return errors;
   }, [currentSchema]);
 
@@ -283,6 +313,15 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       errors.push({
         type: 'error',
         message: `Table "${table.name}" cannot have multiple primary keys`,
+        tableId: table.id
+      });
+    }
+    
+    // Check for missing primary key
+    if (primaryKeys.length === 0) {
+      errors.push({
+        type: 'warning',
+        message: `Table "${table.name}" has no primary key defined`,
         tableId: table.id
       });
     }
@@ -299,6 +338,27 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       }
       columnNames.add(column.name.toLowerCase());
+      
+      // Validate column name format
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column.name)) {
+        errors.push({
+          type: 'error',
+          message: `Invalid column name "${column.name}" - must start with letter or underscore`,
+          tableId: table.id,
+          columnId: column.id
+        });
+      }
+      
+      // Check for reserved keywords
+      const reservedKeywords = ['SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'TABLE', 'INDEX', 'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES', 'CONSTRAINT', 'UNIQUE', 'NOT', 'NULL', 'DEFAULT', 'AUTO_INCREMENT'];
+      if (reservedKeywords.includes(column.name.toUpperCase())) {
+        errors.push({
+          type: 'warning',
+          message: `Column name "${column.name}" is a reserved SQL keyword`,
+          tableId: table.id,
+          columnId: column.id
+        });
+      }
 
       // Validate foreign key references
       if (column.isForeignKey && column.referencedTable) {
@@ -319,6 +379,16 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               tableId: table.id,
               columnId: column.id
             });
+          } else {
+            // Check data type compatibility
+            if (column.type !== referencedColumn.type) {
+              errors.push({
+                type: 'warning',
+                message: `Data type mismatch: ${column.type} vs ${referencedColumn.type} in foreign key reference`,
+                tableId: table.id,
+                columnId: column.id
+              });
+            }
           }
         }
       }
@@ -333,7 +403,26 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           columnId: column.id
         });
       }
+      
+      // Validate data types
+      if (!column.type || column.type.trim() === '') {
+        errors.push({
+          type: 'error',
+          message: `Column "${column.name}" is missing data type`,
+          tableId: table.id,
+          columnId: column.id
+        });
+      }
     });
+    
+    // Validate table name format
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(table.name)) {
+      errors.push({
+        type: 'error',
+        message: `Invalid table name "${table.name}" - must start with letter or underscore`,
+        tableId: table.id
+      });
+    }
 
     return errors;
   }, [currentSchema.tables]);

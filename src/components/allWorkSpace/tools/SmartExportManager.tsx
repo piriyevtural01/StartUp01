@@ -99,24 +99,41 @@ const SmartExportManager: React.FC = () => {
       content = exportSchema(selectedFormat);
     }
 
-    // Create and download file with schema name
+    // Create and download file with smart naming based on portfolio/schema name
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     
-    // Use schema name for filename
+    // Smart naming: Use portfolio name or schema name with timestamp
     const sanitizedName = currentSchema.name
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '_')
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '');
     
-    a.download = `${sanitizedName || 'database_schema'}.${format.extension}`;
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+    const fileName = `${sanitizedName || 'database_schema'}_${timestamp}.${format.extension}`;
+    a.download = fileName;
+    
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    
+    // Show success message with filename
+    setResult({
+      type: 'export_success',
+      message: `Schema exported successfully as "${fileName}"`,
+      format: format.name
+    });
+    
+    // Clear message after 3 seconds
+    setTimeout(() => {
+      if (result?.type === 'export_success') {
+        setResult(null);
+      }
+    }, 3000);
   };
 
   const handlePreview = () => {
