@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Plus, Code, Link, Download, ChevronDown, Play, Database, Shield, Search, Settings, Users } from 'lucide-react';
 import { useSubscription } from '../../../context/SubscriptionContext'; // Added subscription context
-import ZeroCodeDDLBuilder from '../tools/ZeroCodeDDLBuilder';
+import AdvancedTableBuilder from '../tools/AdvancedTableBuilder';
 import ZeroCodeCRUDBuilder from '../tools/ZeroCodeCRUDBuilder';
 import VisualQueryBuilder from '../tools/VisualQueryBuilder';
-import RelationshipBuilder from '../tools/RelationshipBuilder';
+import RelationshipVisualizer from '../tools/RelationshipVisualizer';
 import SecurityManager from '../tools/SecurityManager';
 import EnhancedTeamCollaboration from '../tools/EnhancedTeamCollaboration'; // Enhanced team collaboration
-import ExportDropdown from '../tools/ExportDropdown';
+import SmartExportManager from '../tools/SmartExportManager';
 
 type ActiveTool = 'ddl' | 'crud' | 'query' | 'relationship' | 'security' | 'team' | null;
 
@@ -90,10 +90,10 @@ const ToolsPanel: React.FC = () => {
 
       {/* Active Tool Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTool === 'ddl' && <ZeroCodeDDLBuilder />}
+        {activeTool === 'ddl' && <AdvancedTableBuilder />}
         {activeTool === 'crud' && <ZeroCodeCRUDBuilder />}
         {activeTool === 'query' && <VisualQueryBuilder />}
-        {activeTool === 'relationship' && <RelationshipBuilder />}
+        {activeTool === 'relationship' && <RelationshipVisualizer />}
         {activeTool === 'security' && <SecurityManager />}
         {activeTool === 'team' && <EnhancedTeamCollaboration />} {/* Enhanced team collaboration */}
         {!activeTool && (
@@ -110,7 +110,7 @@ const ToolsPanel: React.FC = () => {
 
       {/* Export Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-        <ExportDropdown />
+        <SmartExportManager />
       </div>
     </div>
   );

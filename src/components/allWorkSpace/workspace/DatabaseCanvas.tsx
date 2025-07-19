@@ -15,7 +15,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useDatabase } from '../../../context/DatabaseContext';
-import TableNode from './TableNode';
+import EnhancedTableNode from './EnhancedTableNode';
 
 interface DatabaseCanvasProps {
   zoom: number;
@@ -25,7 +25,7 @@ interface DatabaseCanvasProps {
 }
 
 const nodeTypes = {
-table: TableNode as React.ComponentType<NodeProps>,
+table: EnhancedTableNode as React.ComponentType<NodeProps>,
 };
 
 const DatabaseCanvasInner: React.FC<DatabaseCanvasProps> = ({ 
