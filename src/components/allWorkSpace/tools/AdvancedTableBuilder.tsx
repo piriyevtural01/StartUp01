@@ -191,12 +191,15 @@ const AdvancedTableBuilder: React.FC = () => {
   };
 
   const getAvailableReferenceTables = () => {
-    return currentSchema.tables.filter(table => table.id !== selectedTable);
+    return currentSchema.tables.filter(table => 
+      table.id !== selectedTable && 
+      table.columns.some(col => col.isPrimaryKey)
+    );
   };
 
   const getAvailableReferenceColumns = (tableName: string) => {
     const table = currentSchema.tables.find(t => t.name === tableName);
-    return table?.columns || [];
+    return table?.columns.filter(col => col.isPrimaryKey) || [];
   };
 
   const closeModal = () => {
@@ -225,6 +228,19 @@ const AdvancedTableBuilder: React.FC = () => {
             {error.type === 'error' ? (
               <X className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
             ) : (
+                
+                {/* Foreign Key Reference Warning */}
+                {currentSchema.tables.filter(t => t.columns.some(c => c.isPrimaryKey)).length === 0 && currentSchema.tables.length > 0 && (
+                  <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                    <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span className="font-medium">No Primary Keys Found</span>
+                    </div>
+                    <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-1">
+                      To create foreign key relationships, at least one table must have a primary key defined.
+                    </p>
+                  </div>
+                )}
               <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
             )}
             <span className={`text-sm ${
@@ -540,6 +556,7 @@ const AdvancedTableBuilder: React.FC = () => {
 
                         {/* Foreign Key Reference */}
                         {column.isForeignKey && (
+                          <>
                           <select
                             value={column.referencedTable || ''}
                             onChange={(e) => updateColumn(index, { 
@@ -550,22 +567,27 @@ const AdvancedTableBuilder: React.FC = () => {
                           >
                             <option value="">Select referenced table</option>
                             {getAvailableReferenceTables().map(table => (
-                              <option key={table.id} value={table.name}>{table.name}</option>
+                              <option key={table.id} value={table.name}>
+                                {table.name} ({table.columns.filter(c => c.isPrimaryKey).length} PK)
+                              </option>
                             ))}
                           </select>
-                        )}
 
-                        {column.isForeignKey && column.referencedTable && (
-                          <select
-                            value={column.referencedColumn || ''}
-                            onChange={(e) => updateColumn(index, { referencedColumn: e.target.value })}
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-                          >
-                            <option value="">Select referenced column</option>
-                            {getAvailableReferenceColumns(column.referencedTable).map(refCol => (
-                              <option key={refCol.id} value={refCol.name}>{refCol.name}</option>
-                            ))}
-                          </select>
+                          {column.referencedTable && (
+                            <select
+                              value={column.referencedColumn || ''}
+                              onChange={(e) => updateColumn(index, { referencedColumn: e.target.value })}
+                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                            >
+                              <option value="">Select referenced column</option>
+                              {getAvailableReferenceColumns(column.referencedTable).map(refCol => (
+                                <option key={refCol.id} value={refCol.name}>
+                                  {refCol.name} ({refCol.type}) - PK
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          </>
                         )}
                       </div>
 
@@ -587,6 +609,7 @@ const AdvancedTableBuilder: React.FC = () => {
                             checked={column.isPrimaryKey || false}
                             onChange={(e) => updateColumn(index, { isPrimaryKey: e.target.checked })}
                             className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                            disabled={e.target.checked && tableForm.columns.some((col, i) => i !== index && col.isPrimaryKey)}
                           />
                           <Key className="w-4 h-4 text-yellow-500" />
                           <span className="text-gray-700 dark:text-gray-300">Primary Key</span>
@@ -598,6 +621,7 @@ const AdvancedTableBuilder: React.FC = () => {
                             checked={column.isForeignKey || false}
                             onChange={(e) => updateColumn(index, { isForeignKey: e.target.checked })}
                             className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                            disabled={getAvailableReferenceTables().length === 0}
                           />
                           <Link2 className="w-4 h-4 text-blue-500" />
                           <span className="text-gray-700 dark:text-gray-300">Foreign Key</span>
