@@ -312,7 +312,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (primaryKeys.length > 1) {
       errors.push({
         type: 'error',
-        message: `Table "${table.name}" cannot have multiple primary keys`,
+        message: `Table cannot have two primary keys`,
         tableId: table.id
       });
     }
@@ -366,7 +366,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!referencedTable) {
           errors.push({
             type: 'error',
-            message: `Referenced table "${column.referencedTable}" not found`,
+            message: `Foreign-key column not found`,
             tableId: table.id,
             columnId: column.id
           });
@@ -375,7 +375,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (!referencedColumn) {
             errors.push({
               type: 'error',
-              message: `Referenced column "${column.referencedColumn}" not found in table "${column.referencedTable}"`,
+              message: `Foreign-key column not found`,
               tableId: table.id,
               columnId: column.id
             });
@@ -394,14 +394,18 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // Check for duplicate unique constraints
-      const uniqueColumns = table.columns.filter(col => col.isUnique && col.name === column.name);
-      if (uniqueColumns.length > 1) {
-        errors.push({
-          type: 'error',
-          message: `Duplicate unique constraint on column "${column.name}"`,
-          tableId: table.id,
-          columnId: column.id
-        });
+      if (column.isUnique) {
+        const duplicateUnique = table.columns.filter(col => 
+          col.id !== column.id && col.isUnique && col.name === column.name
+        );
+        if (duplicateUnique.length > 0) {
+          errors.push({
+            type: 'error',
+            message: `Duplicate UNIQUE constraint`,
+            tableId: table.id,
+            columnId: column.id
+          });
+        }
       }
       
       // Validate data types
@@ -414,6 +418,34 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       }
     });
+    
+    // Check for circular foreign key references
+    const checkCircularReferences = (tableId: string, visited: Set<string> = new Set()): boolean => {
+      if (visited.has(tableId)) return true;
+      visited.add(tableId);
+      
+      const currentTable = currentSchema.tables.find(t => t.id === tableId);
+      if (!currentTable) return false;
+      
+      for (const column of currentTable.columns) {
+        if (column.isForeignKey && column.referencedTable) {
+          const referencedTable = currentSchema.tables.find(t => t.name === column.referencedTable);
+          if (referencedTable && checkCircularReferences(referencedTable.id, new Set(visited))) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    };
+    
+    if (checkCircularReferences(table.id)) {
+      errors.push({
+        type: 'error',
+        message: `Circular foreign key reference detected`,
+        tableId: table.id
+      });
+    }
     
     // Validate table name format
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(table.name)) {

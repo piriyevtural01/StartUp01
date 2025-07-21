@@ -69,6 +69,27 @@ const PortfolioManager: React.FC = () => {
     }
   };
 
+  const handleImportSQL = async () => {
+    if (!sqlCode.trim()) return;
+    
+    setIsImporting(true);
+    setImportError('');
+    
+    try {
+      // Parse and import SQL code
+      importFromSQL(sqlCode);
+      
+      // Close modal and clear form
+      setShowImportModal(false);
+      setSqlCode('');
+      setImportError('');
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Failed to parse SQL code');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col p-4">
       {/* Header */}
@@ -77,12 +98,20 @@ const PortfolioManager: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Schema Portfolio
           </h3>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm"
-          >
-            <Plus className="w-4 h-4" /> New
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
+            >
+              <Upload className="w-4 h-4" /> Import SQL
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm"
+            >
+              <Plus className="w-4 h-4" /> New
+            </button>
+          </div>
         </div>
         {/* Current Schema Info */}
         <div className="bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-lg p-4">

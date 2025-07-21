@@ -105,7 +105,7 @@ const SmartExportManager: React.FC = () => {
     const a = document.createElement('a');
     a.href = url;
     
-    // Smart naming: Use portfolio name or schema name with timestamp
+    // Smart naming: Use current portfolio/project name automatically
     const sanitizedName = currentSchema.name
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '_')
@@ -120,20 +120,6 @@ const SmartExportManager: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    // Show success message with filename
-    setResult({
-      type: 'export_success',
-      message: `Schema exported successfully as "${fileName}"`,
-      format: format.name
-    });
-    
-    // Clear message after 3 seconds
-    setTimeout(() => {
-      if (result?.type === 'export_success') {
-        setResult(null);
-      }
-    }, 3000);
   };
 
   const handlePreview = () => {

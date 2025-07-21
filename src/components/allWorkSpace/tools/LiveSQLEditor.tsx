@@ -359,14 +359,30 @@ CREATE TABLE posts (
   const handleAutoExecute = async (statement: string) => {
     try {
       setLastExecutedStatement(statement);
-      parseSQLStatement(statement);
       
-      // Show success indicator
-      setResult({
-        type: 'schema_update',
-        message: 'Schema updated successfully',
-        statement: statement.trim()
-      });
+      // Parse and validate the SQL statement
+      const trimmed = statement.trim().toUpperCase();
+      
+      if (trimmed.startsWith('CREATE TABLE') || trimmed.startsWith('ALTER TABLE')) {
+        // Parse the statement and update schema
+        parseSQLStatement(statement);
+        
+        // Show success indicator
+        setResult({
+          type: 'schema_update',
+          message: 'Schema updated successfully',
+          statement: statement.trim()
+        });
+      } else {
+        // For other statements, just execute them
+        const result = await executeSQL(statement);
+        setResult({
+          type: 'query_result',
+          columns: result.columns || [],
+          values: result.values || [],
+          executionTime: Date.now() - Date.now()
+        });
+      }
       
       // Clear after 3 seconds
       setTimeout(() => {

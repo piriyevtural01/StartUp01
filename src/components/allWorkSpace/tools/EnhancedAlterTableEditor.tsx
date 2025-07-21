@@ -127,10 +127,68 @@ const EnhancedAlterTableEditor: React.FC = () => {
     setPendingOperations(prev => [...prev, operation]);
   };
 
+  // Enhanced validation for ALTER operations
+  const validateAlterOperation = useCallback((operation: string, data: any) => {
+    const errors: string[] = [];
+    
+    switch (operation) {
+      case 'ADD_PRIMARY_KEY':
+        const existingPK = tableForm.columns.find(col => col.isPrimaryKey);
+        if (existingPK) {
+          errors.push('Table cannot have two primary keys');
+        }
+        break;
+        
+      case 'ADD_FOREIGN_KEY':
+        if (!data.referencedTable || !data.referencedColumn) {
+          errors.push('Foreign-key column not found');
+        }
+        break;
+        
+      case 'ADD_UNIQUE':
+        const existingUnique = tableForm.columns.find(col => 
+          col.id !== data.columnId && col.isUnique && col.name === data.columnName
+        );
+        if (existingUnique) {
+          errors.push('Duplicate UNIQUE constraint');
+        }
+        break;
+    }
+    
+    return errors;
+  }, [tableForm.columns]);
+
   const updateColumn = (columnId: string, updates: Partial<Column>) => {
     const originalColumn = tableForm.columns.find(c => c.id === columnId);
     if (!originalColumn) return;
 
+    // Validate the operation before applying
+    if (updates.isPrimaryKey) {
+      const validationErrors = validateAlterOperation('ADD_PRIMARY_KEY', { columnId });
+      if (validationErrors.length > 0) {
+        setErrors(validationErrors.map(msg => ({ type: 'error' as const, message: msg })));
+        return;
+      }
+    }
+    
+    if (updates.isForeignKey && updates.referencedTable && updates.referencedColumn) {
+      const validationErrors = validateAlterOperation('ADD_FOREIGN_KEY', updates);
+      if (validationErrors.length > 0) {
+        setErrors(validationErrors.map(msg => ({ type: 'error' as const, message: msg })));
+        return;
+      }
+    }
+    
+    if (updates.isUnique) {
+      const validationErrors = validateAlterOperation('ADD_UNIQUE', { 
+        columnId, 
+        columnName: originalColumn.name 
+      });
+      if (validationErrors.length > 0) {
+        setErrors(validationErrors.map(msg => ({ type: 'error' as const, message: msg })));
+        return;
+      }
+    }
     setTableForm(prev => ({
       ...prev,
       columns: prev.columns.map(col => {

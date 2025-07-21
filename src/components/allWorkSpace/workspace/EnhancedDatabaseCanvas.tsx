@@ -245,6 +245,12 @@ const EnhancedDatabaseCanvasInner: React.FC<EnhancedDatabaseCanvasProps> = ({
         const targetColumn = targetTable?.columns.find(c => c.id === params.targetHandle);
 
         if (sourceTable && targetTable && sourceColumn && targetColumn) {
+          // Check if target column is a primary key
+          if (!targetColumn.isPrimaryKey) {
+            console.warn('Target column must be a primary key for foreign key relationship');
+            return;
+          }
+          
           // Check if relationship already exists
           const existingRelationship = currentSchema.relationships.find(rel =>
             rel.sourceTableId === params.source &&
@@ -254,6 +260,7 @@ const EnhancedDatabaseCanvasInner: React.FC<EnhancedDatabaseCanvasProps> = ({
           );
 
           if (!existingRelationship) {
+            // Create the relationship
             addRelationship({
               sourceTableId: params.source,
               sourceColumnId: params.sourceHandle,
@@ -262,11 +269,25 @@ const EnhancedDatabaseCanvasInner: React.FC<EnhancedDatabaseCanvasProps> = ({
               cardinality: '1:N',
               constraintName: `FK_${sourceTable.name}_${sourceColumn.name}_${targetTable.name}_${targetColumn.name}`
             });
+            
+            // Update the source column to mark it as foreign key
+            updateTable(params.source, {
+              columns: sourceTable.columns.map(col => 
+                col.id === params.sourceHandle 
+                  ? { 
+                      ...col, 
+                      isForeignKey: true, 
+                      referencedTable: targetTable.name,
+                      referencedColumn: targetColumn.name 
+                    }
+                  : col
+              )
+            });
           }
         }
       }
     },
-    [addRelationship, currentSchema.tables, currentSchema.relationships]
+    [addRelationship, currentSchema.tables, currentSchema.relationships, updateTable]
   );
 
   const onNodeDragStop = useCallback(
