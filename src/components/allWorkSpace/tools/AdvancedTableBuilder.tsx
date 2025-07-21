@@ -191,14 +191,17 @@ const AdvancedTableBuilder: React.FC = () => {
   };
 
   const getAvailableReferenceTables = () => {
-    return currentSchema.tables.filter(table => 
-      table.id !== selectedTable && 
-      table.columns.some(col => col.isPrimaryKey)
-    );
+    return currentSchema.tables.filter(table => {
+      // Only show tables that have primary keys and are not the current table being edited
+      const hasPrimaryKey = table.columns.some(col => col.isPrimaryKey);
+      const isNotCurrentTable = activeModal === 'alter' ? table.id !== selectedTable : true;
+      return hasPrimaryKey && isNotCurrentTable;
+    });
   };
 
   const getAvailableReferenceColumns = (tableName: string) => {
     const table = currentSchema.tables.find(t => t.name === tableName);
+    // Only return primary key columns for foreign key references
     return table?.columns.filter(col => col.isPrimaryKey) || [];
   };
 
@@ -607,9 +610,20 @@ const AdvancedTableBuilder: React.FC = () => {
                           <input
                             type="checkbox"
                             checked={column.isPrimaryKey || false}
-                            onChange={(e) => updateColumn(index, { isPrimaryKey: e.target.checked })}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                // Ensure only one primary key per table
+                                const updatedColumns = tableForm.columns.map((col, i) => 
+                                  i === index 
+                                    ? { ...col, isPrimaryKey: true, isForeignKey: false }
+                                    : { ...col, isPrimaryKey: false }
+                                );
+                                setTableForm(prev => ({ ...prev, columns: updatedColumns }));
+                              } else {
+                                updateColumn(index, { isPrimaryKey: false });
+                              }
+                            }}
                             className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                            disabled={e.target.checked && tableForm.columns.some((col, i) => i !== index && col.isPrimaryKey)}
                           />
                           <Key className="w-4 h-4 text-yellow-500" />
                           <span className="text-gray-700 dark:text-gray-300">Primary Key</span>
@@ -619,7 +633,22 @@ const AdvancedTableBuilder: React.FC = () => {
                           <input
                             type="checkbox"
                             checked={column.isForeignKey || false}
-                            onChange={(e) => updateColumn(index, { isForeignKey: e.target.checked })}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                updateColumn(index, { 
+                                  isForeignKey: true, 
+                                  isPrimaryKey: false,
+                                  referencedTable: '',
+                                  referencedColumn: ''
+                                });
+                              } else {
+                                updateColumn(index, { 
+                                  isForeignKey: false,
+                                  referencedTable: undefined,
+                                  referencedColumn: undefined
+                                });
+                              }
+                            }}
                             className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                             disabled={getAvailableReferenceTables().length === 0}
                           />
