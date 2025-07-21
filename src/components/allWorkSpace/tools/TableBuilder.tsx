@@ -38,6 +38,9 @@ const TableBuilder: React.FC = () => {
           type: 'VARCHAR(255)',
           nullable: true,
           isPrimaryKey: false,
+          isForeignKey: false,
+          isUnique: false,
+          isIndexed: false
         },
       ],
     }));

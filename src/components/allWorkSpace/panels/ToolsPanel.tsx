@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
-import { Plus, Code, Link, Download, ChevronDown, Play, Database, Shield, Search, Settings, Users } from 'lucide-react';
-import { useSubscription } from '../../../context/SubscriptionContext'; // Added subscription context
+import { Plus, Code, Link, Download, Database, Shield, Search, Settings, Users } from 'lucide-react';
 import AdvancedTableBuilder from '../tools/AdvancedTableBuilder';
 import ZeroCodeCRUDBuilder from '../tools/ZeroCodeCRUDBuilder';
 import VisualQueryBuilder from '../tools/VisualQueryBuilder';
 import RelationshipVisualizer from '../tools/RelationshipVisualizer';
 import SecurityManager from '../tools/SecurityManager';
-import EnhancedTeamCollaboration from '../tools/EnhancedTeamCollaboration'; // Enhanced team collaboration
+import TeamCollaboration from '../tools/TeamCollaboration';
 import SmartExportManager from '../tools/SmartExportManager';
 
 type ActiveTool = 'ddl' | 'crud' | 'query' | 'relationship' | 'security' | 'team' | null;
 
 const ToolsPanel: React.FC = () => {
-  const { currentPlan } = useSubscription(); // Added subscription hook
   const [activeTool, setActiveTool] = useState<ActiveTool>('ddl');
 
-  // Define tools with plan requirements
   const tools = [
     {
       id: 'ddl' as const,
@@ -41,22 +38,18 @@ const ToolsPanel: React.FC = () => {
       icon: Link,
       description: 'Define table relationships',
     },
-    // Conditionally show Security or Team Collaboration based on plan
-    ...(currentPlan === 'ultimate' ? [
-      {
-        id: 'team' as const,
-        name: 'Team Collaboration',
-        icon: Users,
-        description: 'Invite team members and manage workspace access',
-      }
-    ] : [
-      {
-        id: 'security' as const,
-        name: 'Security',
-        icon: Shield,
-        description: 'Manage users and permissions',
-      }
-    ]),
+    {
+      id: 'security' as const,
+      name: 'Security',
+      icon: Shield,
+      description: 'Manage users and permissions',
+    },
+    {
+      id: 'team' as const,
+      name: 'Team',
+      icon: Users,
+      description: 'Team collaboration',
+    },
   ];
 
   return (
@@ -95,7 +88,7 @@ const ToolsPanel: React.FC = () => {
         {activeTool === 'query' && <VisualQueryBuilder />}
         {activeTool === 'relationship' && <RelationshipVisualizer />}
         {activeTool === 'security' && <SecurityManager />}
-        {activeTool === 'team' && <EnhancedTeamCollaboration />} {/* Enhanced team collaboration */}
+        {activeTool === 'team' && <TeamCollaboration />}
         {!activeTool && (
           <div className="h-full flex items-center justify-center p-6">
             <div className="text-center">
@@ -108,10 +101,6 @@ const ToolsPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Export Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-        <SmartExportManager />
-      </div>
     </div>
   );
 };
